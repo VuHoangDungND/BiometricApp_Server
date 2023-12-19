@@ -19,7 +19,7 @@ Promise.all([
     faceapi.nets.faceRecognitionNet.loadFromDisk('./models'),
     faceapi.nets.faceLandmark68Net.loadFromDisk('./models'),
     faceapi.nets.ssdMobilenetv1.loadFromDisk('./models')
-]).then(()=> console.log("done!"))
+]).then(()=> console.log("load Model done!"))
 
 route(app);
 
