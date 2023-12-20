@@ -174,7 +174,8 @@ class FaceControllers{
     //[POST] /checkFace
     async checkFace(req, res, next) {
       const file = req.file;
-      findFace(file,res);        
+      console.log(file);
+      // findFace(file,res);        
     }
 
     //[GET] /delete
