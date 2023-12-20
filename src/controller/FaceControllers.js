@@ -174,7 +174,7 @@ class FaceControllers{
     //[POST] /checkFace
     async checkFace(req, res, next) {
       const file = req.file;
-      console.log('check file :',file);
+      console.log('file check Face :',file);
       findFace(file,res);        
     }
 
@@ -190,7 +190,7 @@ class FaceControllers{
     register(req, res, next) {
         const file = req.file;
         const info = JSON.parse(JSON.parse(JSON.stringify(req.body)).info);
-
+        console.log('file register Face :',file);
         saveData(file,info,res);
 
     }
