@@ -8,7 +8,7 @@ const { Canvas, Image, ImageData } = canvas;
 faceapi.env.monkeyPatch({ Canvas, Image, ImageData });
 
     //xóa dữ liệu folder public
-    function clearCache() {
+    const clearCache = () =>{
       // Đường dẫn đến duwx
       const dataFilePath = 'public';
       // Đọc danh sách tệp tin trong thư mục
@@ -34,40 +34,6 @@ faceapi.env.monkeyPatch({ Canvas, Image, ImageData });
       });
     }
 
-    //viết thêm dữ liệu mới vào Jsonfile
-    function writeToJSONFile(filePath, data,res) {
-      // Chuyển đối tượng JavaScript thành chuỗi JSON
-      const jsonDataString = JSON.stringify(data, null, 2);
-
-      // Ghi dữ liệu mới vào tệp JSON
-      fs.writeFile(filePath, jsonDataString, 'utf8', (err) => {
-        if (err) {
-          res.status(200).json({message: `lỗi thêm dữ liệu: ${err}`}); 
-        } else {
-          res.status(200).json({message: "đăng ký dữ liệu thành công"});
-        }
-      });
-    }
-
-    //xóa dữ liệu file Jsonfile
-    function deleteJSONFile(filePath,res) {
-      // Tạo một tệp JSON trống
-      const emptyData = [];
-
-      // Chuyển đối tượng JavaScript thành chuỗi JSON
-      const emptyJsonString = JSON.stringify(emptyData, null, 2);
-
-      //ghi đè dữ liệu trống
-      fs.writeFile(filePath, emptyJsonString,'utf8', (err) => {
-        if (err) {
-          res.status(200).json({message: `lỗi xóa dữ liệu: ${err}`}); 
-        } else {
-          res.status(200).json({message: "xóa dữ liệu thành công"}); 
-
-        }
-      })
-    }
-
     // lưu dữ liệu khuôn mặt đăng ký
     const saveData = async (data,info,res) => {
       //chuyển từ file thànnh buffer
@@ -85,31 +51,6 @@ faceapi.env.monkeyPatch({ Canvas, Image, ImageData });
       //Lưu dữ liệu vào biến và đánh dấu từng nhãn dán
       const labelFaceDescriptor = new faceapi.LabeledFaceDescriptors(info,[detection.descriptor]);
 
-      
-      // // Đường dẫn đến tệp JSON
-      // const jsonFilePath = 'store/labeledFacesData.json';
-
-      // //Đọc dữ liệu lưu trữ tạm thời
-      // fs.readFile(jsonFilePath, 'utf8', (err, data) => {
-      //     if (err) {
-      //       res.status(200).json({message: `lỗi đọc dữ liệu: ${err}`}); 
-      //       return;
-      //     }
-        
-      //     try {
-      //       // Parse dữ liệu từ chuỗi JSON thành đối tượng JavaScript
-      //       const jsonData = data?JSON.parse(data):[];
-           
-      //       const jsonDataAfter = [...jsonData,{ label: labelFaceDescriptor.label, descriptors: labelFaceDescriptor.descriptors} ];
-      //       clearCache();
-        
-      //       // Ghi lại dữ liệu mới và giữ nguyên dữ liệu cũ vào tệp JSON
-      //       writeToJSONFile(jsonFilePath, jsonDataAfter,res);
-      //     } catch (parseError) {
-      //       res.status(200).json({message: `lỗi đọc dữ liệu: ${err}`}); 
-      //     }
-      //   }); 
-
       const myDescriptors = Array.from(labelFaceDescriptor.descriptors);
 
       let query = "INSERT INTO `biometric` ( `label`, `descriptors`) VALUES ( '" +
@@ -117,7 +58,10 @@ faceapi.env.monkeyPatch({ Canvas, Image, ImageData });
                   "' ,'" +
                   JSON.stringify(myDescriptors, null, 2) +
                   "')";
-                  
+
+      //xóa file public
+      clearCache();
+
       db.query(query, function (err, result) {
         if (err) return res.status(400);
         res.status(200).json({ message: "Thành công thêm dữ liệu" });
@@ -139,44 +83,35 @@ faceapi.env.monkeyPatch({ Canvas, Image, ImageData });
         .withFaceLandmarks()
         .withFaceDescriptor();
 
-      // Đường dẫn đến tệp JSON
-      const jsonFilePath = 'store/labeledFacesData.json';
+      let query = "SELECT * FROM `biometric`";
 
-      //Đọc dữ liệu lưu trữ tạm thời
-      fs.readFile(jsonFilePath, 'utf8', async(err, data) => {
-          if (err) {
-            res.status(200).json({message: `lỗi đọc dữ liệu: ${err}`}); 
-            return;
-          }
-        
-          try {
-              // Parse dữ liệu từ chuỗi JSON thành đối tượng JavaScript
-              const jsonData = data?JSON.parse(data):[];
-              
-              // Chuyển đổi JSON thành mảng LabeledFaceDescriptors
-              const labeledFaceDescriptorsArray = await jsonData.map(item => {
-                const label = item.label;
-                const descriptors = item.descriptors.map(descriptor => {
-                  const tmp = [];
-                  for(let i = 0; i <128; i++ ) {
-                    tmp.push(descriptor[i]);
-                  };
-                  return new Float32Array(tmp);
-                });
-                return new faceapi.LabeledFaceDescriptors(label, descriptors);
-              }); 
-  
-              const faceMatcher = new faceapi.FaceMatcher(labeledFaceDescriptorsArray, 0.7);
-  
-              const result = faceMatcher.findBestMatch(detection.descriptor);
-              res.status(200).json({label: `${result.label}`})
-        
-              clearCache();
-          } catch (parseError) {
-            res.status(200).json({message: `lỗi đọc dữ liệu: ${err}`}); 
-          }
-        });
+      //xóa dữ liệu tạm thời
+      clearCache();
 
+      db.query(query, function (err, result) {
+        if (err) return res.status(400);
+        const array = [];
+        result.forEach((item) => {
+          const arrayItem = Object.values(item);
+          const label = arrayItem[0];
+          const arrayDescriptors = JSON.parse(arrayItem[1]);
+          const descriptors =  arrayDescriptors.map(descriptor => {
+            const tmp = [];
+            for(let i = 0; i <128; i++ ) {
+              tmp.push(descriptor[i]);
+            };
+              return new Float32Array(tmp);
+          });
+
+          array.push(new faceapi.LabeledFaceDescriptors(label, descriptors))
+        })
+
+        //Tìm khuôn mặt khớp
+        const faceMatcher = new faceapi.FaceMatcher(array, 0.7);
+        const findedFace = faceMatcher.findBestMatch(detection.descriptor);
+
+        res.status(200).json({label: `${findedFace.label}`})
+      });
     }
 
 
@@ -184,29 +119,53 @@ class FaceControllers{
     
     
     //[POST] /checkFace
-    async checkFace(req, res, next) {
+    checkFace(req, res, next) {
       const file = req.file;
       console.log('file check Face :',file);
       findFace(file,res);        
     }
 
-    //[GET] /delete
+    //[POST] /delete
     delete(req, res, next) {
-      // Đường dẫn đến tệp JSON
-      const jsonFilePath = 'store/labeledFacesData.json';
+
       clearCache();
-      deleteJSONFile(jsonFilePath,res);
+
+      //Kiểm tra mật mã
+      if(req.body.pass === process.env.PASS) {
+        const query = "DELETE  FROM `biometric`";
+      
+        db.query(query, function (err, result) {
+          if (err) return res.status(400);
+          res.status(200).json({ message: "Xóa dữ liệu thành công" });
+        })
+      } else {
+        res.status(200).json({ message: "Sai mật mã. Mời nhập lại" });
+      }
+
+      
     }
 
-    //[POST] /
+    //[POST] /register
     register(req, res, next) {
         const file = req.file;
         const info = JSON.parse(JSON.parse(JSON.stringify(req.body)).info);
         console.log('file register Face :',file);
         saveData(file,info,res);
-
     }
 
+    //[GET] /
+    showData(req, res, next) {
+      const query = "SELECT label FROM `biometric`";
+      db.query(query, function (err, result) {
+        if (err) return res.status(400);
+        const array = [];
+        result.forEach((item) => {
+          const arrayItem = Object.values(item);
+          array.push(...arrayItem);
+        })
+        res.status(200).json({list: array});
+      })
+    }
 }
 
 module.exports = new FaceControllers();
