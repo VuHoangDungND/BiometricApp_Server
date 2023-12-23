@@ -1,9 +1,8 @@
 const faceapi = require('face-api.js');
 const fs = require('fs');
-const blobUtil = require('blob-util');
 const canvas = require("canvas");
 const path = require('path');
-const { json } = require('express/lib/response');
+const db = require('../config/db');
 
 const { Canvas, Image, ImageData } = canvas;
 faceapi.env.monkeyPatch({ Canvas, Image, ImageData });
@@ -87,29 +86,42 @@ faceapi.env.monkeyPatch({ Canvas, Image, ImageData });
       const labelFaceDescriptor = new faceapi.LabeledFaceDescriptors(info,[detection.descriptor]);
 
       
-      // Đường dẫn đến tệp JSON
-      const jsonFilePath = 'store/labeledFacesData.json';
+      // // Đường dẫn đến tệp JSON
+      // const jsonFilePath = 'store/labeledFacesData.json';
 
-      //Đọc dữ liệu lưu trữ tạm thời
-      fs.readFile(jsonFilePath, 'utf8', (err, data) => {
-          if (err) {
-            res.status(200).json({message: `lỗi đọc dữ liệu: ${err}`}); 
-            return;
-          }
+      // //Đọc dữ liệu lưu trữ tạm thời
+      // fs.readFile(jsonFilePath, 'utf8', (err, data) => {
+      //     if (err) {
+      //       res.status(200).json({message: `lỗi đọc dữ liệu: ${err}`}); 
+      //       return;
+      //     }
         
-          try {
-            // Parse dữ liệu từ chuỗi JSON thành đối tượng JavaScript
-            const jsonData = data?JSON.parse(data):[];
+      //     try {
+      //       // Parse dữ liệu từ chuỗi JSON thành đối tượng JavaScript
+      //       const jsonData = data?JSON.parse(data):[];
            
-            const jsonDataAfter = [...jsonData,{ label: labelFaceDescriptor.label, descriptors: labelFaceDescriptor.descriptors} ];
-            clearCache();
+      //       const jsonDataAfter = [...jsonData,{ label: labelFaceDescriptor.label, descriptors: labelFaceDescriptor.descriptors} ];
+      //       clearCache();
         
-            // Ghi lại dữ liệu mới và giữ nguyên dữ liệu cũ vào tệp JSON
-            writeToJSONFile(jsonFilePath, jsonDataAfter,res);
-          } catch (parseError) {
-            res.status(200).json({message: `lỗi đọc dữ liệu: ${err}`}); 
-          }
-        }); 
+      //       // Ghi lại dữ liệu mới và giữ nguyên dữ liệu cũ vào tệp JSON
+      //       writeToJSONFile(jsonFilePath, jsonDataAfter,res);
+      //     } catch (parseError) {
+      //       res.status(200).json({message: `lỗi đọc dữ liệu: ${err}`}); 
+      //     }
+      //   }); 
+
+      const myDescriptors = Array.from(labelFaceDescriptor.descriptors);
+
+      let query = "INSERT INTO `biometric` ( `label`, `descriptors`) VALUES ( '" +
+                  labelFaceDescriptor.label +
+                  "' ,'" +
+                  JSON.stringify(myDescriptors, null, 2) +
+                  "')";
+                  
+      db.query(query, function (err, result) {
+        if (err) return res.status(400);
+        res.status(200).json({ message: "Thành công thêm dữ liệu" });
+      });
     }
 
     //nhận diện khuôn mặt so với lưu trữ
@@ -194,6 +206,7 @@ class FaceControllers{
         saveData(file,info,res);
 
     }
+
 }
 
 module.exports = new FaceControllers();
