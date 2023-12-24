@@ -11,8 +11,19 @@ var db = mysql.createConnection({
 });
 
 db.connect(function (err) {
-    if (err) console.log(err);
-    console.log('Database connected!!!');
+    if (err) {
+        console.log('error when connecting to db:', err);
+    }   
+    console.log('Database connected!!!');  
+});
+
+db.on('error', function(err) {
+    console.log('db error', err);
+    if(err.code === 'PROTOCOL_CONNECTION_LOST') {
+        db()
+    } else {
+        throw err;
+    }
 });
 
 module.exports = db;
