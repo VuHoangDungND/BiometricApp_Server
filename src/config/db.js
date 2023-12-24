@@ -3,27 +3,34 @@ const mysql = require('mysql');
 require('dotenv').config();
 
 // Creating connection
-var db = mysql.createConnection({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USERNAME,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_DBNAME,
-});
+function createConnection() {
+    return mysql.createConnection({
+        host: process.env.DB_HOST,
+        user: process.env.DB_USERNAME,
+        password: process.env.DB_PASSWORD,
+        database: process.env.DB_DBNAME,
+    });
+}
 
-db.connect(function (err) {
-    if (err) {
-        console.log('error when connecting to db:', err);
-    }   
-    console.log('Database connected!!!');  
-});
+function handleDatabase(callback) {
+    const connection = createConnection();
+    
+    connection.connect((err) => {
+        if (err) {
+          console.error('Error connecting to database:', err.message);
+          return;
+        }
+    
+        console.log('Connected to database');
+    
+        // Gọi hàm callback để thực hiện các hàm xử lý database
+        callback(connection);
+    
+        // Sau khi hoàn thành xử lý, đóng kết nối
+        connection.end();
+        console.log('Close connect to database');
+      });
+}
 
-db.on('error', function(err) {
-    console.log('db error', err);
-    if(err.code === 'PROTOCOL_CONNECTION_LOST') {
-        db()
-    } else {
-        throw err;
-    }
-});
 
-module.exports = db;
+module.exports = handleDatabase;

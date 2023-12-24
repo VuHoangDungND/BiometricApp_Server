@@ -2,7 +2,7 @@ const faceapi = require('face-api.js');
 const fs = require('fs');
 const canvas = require("canvas");
 const path = require('path');
-const db = require('../config/db');
+const handleDatabase = require('../config/db');
 
 const { Canvas, Image, ImageData } = canvas;
 faceapi.env.monkeyPatch({ Canvas, Image, ImageData });
@@ -61,11 +61,13 @@ faceapi.env.monkeyPatch({ Canvas, Image, ImageData });
 
       //xóa file public
       clearCache();
-
-      db.query(query, function (err, result) {
-        if (err) return res.status(400);
-        res.status(200).json({ message: "Thành công thêm dữ liệu" });
-      });
+      const callback = (db) => {
+        db.query(query, function (err, result) {
+          if (err) return res.status(400);
+          res.status(200).json({ message: "Thành công thêm dữ liệu" });
+        });
+      }
+      handleDatabase(callback);
     }
 
     //nhận diện khuôn mặt so với lưu trữ
@@ -88,30 +90,33 @@ faceapi.env.monkeyPatch({ Canvas, Image, ImageData });
       //xóa dữ liệu tạm thời
       clearCache();
 
-      db.query(query, function (err, result) {
-        if (err) return res.status(400);
-        const array = [];
-        result.forEach((item) => {
-          const arrayItem = Object.values(item);
-          const label = arrayItem[0];
-          const arrayDescriptors = JSON.parse(arrayItem[1]);
-          const descriptors =  arrayDescriptors.map(descriptor => {
-            const tmp = [];
-            for(let i = 0; i <128; i++ ) {
-              tmp.push(descriptor[i]);
-            };
-              return new Float32Array(tmp);
-          });
-
-          array.push(new faceapi.LabeledFaceDescriptors(label, descriptors))
-        })
-
-        //Tìm khuôn mặt khớp
-        const faceMatcher = new faceapi.FaceMatcher(array, 0.7);
-        const findedFace = faceMatcher.findBestMatch(detection.descriptor);
-
-        res.status(200).json({label: `${findedFace.label}`})
-      });
+      const callback = (db) => {
+        db.query(query, function (err, result) {
+          if (err) return res.status(400);
+          const array = [];
+          result.forEach((item) => {
+            const arrayItem = Object.values(item);
+            const label = arrayItem[0];
+            const arrayDescriptors = JSON.parse(arrayItem[1]);
+            const descriptors =  arrayDescriptors.map(descriptor => {
+              const tmp = [];
+              for(let i = 0; i <128; i++ ) {
+                tmp.push(descriptor[i]);
+              };
+                return new Float32Array(tmp);
+            });
+  
+            array.push(new faceapi.LabeledFaceDescriptors(label, descriptors))
+          })
+  
+          //Tìm khuôn mặt khớp
+          const faceMatcher = new faceapi.FaceMatcher(array, 0.7);
+          const findedFace = faceMatcher.findBestMatch(detection.descriptor);
+  
+          res.status(200).json({label: `${findedFace.label}`})
+        });
+      }
+      handleDatabase(callback);
     }
 
 
@@ -133,11 +138,13 @@ class FaceControllers{
       //Kiểm tra mật mã
       if(req.body.pass === process.env.PASS) {
         const query = "DELETE  FROM `biometric`";
-      
-        db.query(query, function (err, result) {
-          if (err) return res.status(400);
-          res.status(200).json({ message: "Xóa dữ liệu thành công" });
-        })
+        const callback = (db) => {
+          db.query(query, function (err, result) {
+            if (err) return res.status(400);
+            res.status(200).json({ message: "Xóa dữ liệu thành công" });
+          })   
+        }
+        handleDatabase(callback);
       } else {
         res.status(200).json({ message: "Sai mật mã. Mời nhập lại" });
       }
@@ -156,15 +163,18 @@ class FaceControllers{
     //[GET] /
     showData(req, res, next) {
       const query = "SELECT label FROM `biometric`";
-      db.query(query, function (err, result) {
-        if (err) return res.status(400);
-        const array = [];
-        result.forEach((item) => {
-          const arrayItem = Object.values(item);
-          array.push(...arrayItem);
+      const callback = (db) =>{
+        db.query(query, function (err, result) {
+          if (err) return res.status(400);
+          const array = [];
+          result.forEach((item) => {
+            const arrayItem = Object.values(item);
+            array.push(...arrayItem);
+          })
+          res.status(200).json({list: array});
         })
-        res.status(200).json({list: array});
-      })
+      }
+      handleDatabase(callback); 
     }
 }
 
