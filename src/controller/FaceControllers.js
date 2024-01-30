@@ -35,28 +35,23 @@ faceapi.env.monkeyPatch({ Canvas, Image, ImageData });
     }
 
     // lưu dữ liệu khuôn mặt đăng ký
-    const saveData = async (data,info,res) => {
-      //chuyển từ file thànnh buffer
-      const imageBuffer = fs.readFileSync(data.path);
-
-      //từ buffer về canvasImage
-      const image = await canvas.loadImage(imageBuffer);
-     
-      //Landmark từng khuôn mặt
-      const detection = await faceapi
-        .detectSingleFace(image)
-        .withFaceLandmarks()
-        .withFaceDescriptor();
-
-      //Lưu dữ liệu vào biến và đánh dấu từng nhãn dán
-      const labelFaceDescriptor = new faceapi.LabeledFaceDescriptors(info,[detection.descriptor]);
-
-      const myDescriptors = Array.from(labelFaceDescriptor.descriptors);
+    const saveData = async (files,info,res) => {
+      const myDescriptors = [];
+      for (const data of files) {
+        const imageBuffer = fs.readFileSync(data.path);
+        const image = await canvas.loadImage(imageBuffer);
+        const detection = await faceapi.detectSingleFace(image).withFaceLandmarks().withFaceDescriptor();
+        
+        myDescriptors.push(detection.descriptor);
+      }
+      
+      const labelFaceDescriptor = new faceapi.LabeledFaceDescriptors(info, myDescriptors);
+      const saveDescriptor = Array.from(labelFaceDescriptor.descriptors);
 
       let query = "INSERT INTO `biometric` ( `label`, `descriptors`) VALUES ( '" +
                   labelFaceDescriptor.label +
                   "' ,'" +
-                  JSON.stringify(myDescriptors, null, 2) +
+                  JSON.stringify(saveDescriptor, null, 2) +
                   "')";
 
       //xóa file public
@@ -154,10 +149,10 @@ class FaceControllers{
 
     //[POST] /register
     register(req, res, next) {
-        const file = req.file;
+        const files = req.files;
         const info = JSON.parse(JSON.parse(JSON.stringify(req.body)).info);
-        console.log('file register Face :',file);
-        saveData(file,info,res);
+        console.log('file register Face :',files);
+        saveData(files,info,res);
     }
 
     //[GET] /
